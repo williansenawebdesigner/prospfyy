@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { KanbanBoard } from './components/KanbanBoard';
 import { BusinessTable } from './components/BusinessTable';
@@ -9,11 +9,15 @@ import { searchBusinesses } from './utils/maps';
 import type { Business, APIConfig } from './types';
 import { Configuracoes } from './pages/Configuracoes';
 import { GestaoLeads } from './pages/GestaoLeads';
+import { Login } from './pages/Login';
 import { MapPin } from 'lucide-react';
+import { AuthProvider, useAuth } from './components/AuthProvider';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 type ViewMode = 'table' | 'kanban';
 
-function App() {
+function AppContent() {
+  const { isAuthenticated } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,13 +93,15 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className={`min-h-screen flex ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-gray-50 text-gray-900'}`}>
-        <Sidebar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-        <div className="flex-1 ml-64">
-          <Routes>
-            <Route path="/" element={
-              <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+    <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-gray-50 text-gray-900'}`}>
+      <div className={isAuthenticated ? 'ml-64' : ''}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          <Route path="/" element={
+            <ProtectedRoute>
+              {isAuthenticated && <Sidebar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
+              <div className={`max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 ${isAuthenticated ? 'ml-64' : ''}`}>
                 <div className="px-4 py-8 sm:px-0">
                   <div className="mb-12 text-center">
                     <div className="flex items-center justify-center mb-6">
@@ -159,8 +165,11 @@ function App() {
                   </div>
                 </div>
               </div>
-            } />
-            <Route path="/configuracoes" element={
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/configuracoes" element={
+            <ProtectedRoute>
               <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
                 <div className="px-4 py-8 sm:px-0">
                   <Configuracoes
@@ -171,17 +180,32 @@ function App() {
                   />
                 </div>
               </div>
-            } />
-            <Route path="/gestao-leads" element={
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/gestao-leads" element={
+            <ProtectedRoute>
               <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
                 <div className="px-4 py-8 sm:px-0">
                   <GestaoLeads businesses={businesses} />
                 </div>
               </div>
-            } />
-          </Routes>
-        </div>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }

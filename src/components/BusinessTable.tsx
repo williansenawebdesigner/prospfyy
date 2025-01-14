@@ -166,11 +166,23 @@ export function BusinessTable({ businesses, onExportCSV }: BusinessTableProps) {
                     className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={async () => {
                       try {
-                        const { data, error } = await supabase
+                        const { data: { user } } = await supabase.auth.getUser();
+                        
+                        if (!user) {
+                          alert('Por favor, faça login antes de adicionar leads');
+                          return;
+                        }
+
+                        const { error } = await supabase
                           .from('leads')
                           .insert({
                             business_id: business.id,
                             name: business.name,
+                            address: business.address,
+                            phone: business.phone,
+                            website: business.website,
+                            rating: business.rating,
+                            review_count: business.reviewCount,
                             status: 'Prospectar'
                           })
                           .select()
