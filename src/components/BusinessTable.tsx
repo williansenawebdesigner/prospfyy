@@ -1,6 +1,7 @@
-import React from 'react';
-import { Download, Star } from 'lucide-react';
+import { Download, Star, Search, Plus } from 'lucide-react';
+import { useState } from 'react';
 import type { Business } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface BusinessTableProps {
   businesses: Business[];
@@ -8,24 +9,78 @@ interface BusinessTableProps {
 }
 
 export function BusinessTable({ businesses, onExportCSV }: BusinessTableProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [ratingFilter, setRatingFilter] = useState<number | null>(null);
+  const [hasWebsiteFilter, setHasWebsiteFilter] = useState<'all' | 'with' | 'without'>('all');
+
+  const filteredBusinesses = businesses.filter(business => {
+    const matchesSearch = business.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRating = ratingFilter ? business.rating >= ratingFilter : true;
+    const matchesWebsite = 
+      hasWebsiteFilter === 'all' ? true :
+      hasWebsiteFilter === 'with' ? !!business.website :
+      !business.website;
+    
+    return matchesSearch && matchesRating && matchesWebsite;
+  });
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="p-6 border-b border-gray-200/50 flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-          <span className="bg-purple-100 text-purple-600 rounded-full p-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </span>
-          Empresas Listadas
-        </h2>
-        <button
-          onClick={onExportCSV}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Download className="h-5 w-5 mr-2" />
-          Exportar CSV
-        </button>
+      <div className="p-6 border-b border-gray-200/50">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <span className="bg-purple-100 text-purple-600 rounded-full p-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </span>
+            Empresas Listadas
+          </h2>
+          <button
+            onClick={onExportCSV}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Download className="h-5 w-5 mr-2" />
+            Exportar CSV
+          </button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-6 w-full">
+          <div className="relative flex-[2] min-w-[200px]">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Pesquisar empresas..."
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <select
+              value={ratingFilter || ''}
+              onChange={(e) => setRatingFilter(e.target.value ? Number(e.target.value) : null)}
+              className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Todas as avaliações</option>
+              {[1, 2, 3, 4, 5].map(rating => (
+                <option key={rating} value={rating}>
+                  {rating}+ estrelas
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={hasWebsiteFilter}
+              onChange={(e) => setHasWebsiteFilter(e.target.value as 'all' | 'with' | 'without')}
+              className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Todos os sites</option>
+              <option value="with">Com site</option>
+              <option value="without">Sem site</option>
+            </select>
+          </div>
+        </div>
       </div>
       
       <div className="overflow-x-auto">
@@ -44,15 +99,18 @@ export function BusinessTable({ businesses, onExportCSV }: BusinessTableProps) {
               <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 Contato
               </th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200/50">
-            {businesses.map((business, index) => (
+            {filteredBusinesses.map((business, index) => (
               <tr 
                 key={index} 
                 className="hover:bg-gray-50 transition-colors duration-200"
               >
-                <td className="px-6 py-4 min-w-[150px] max-w-[200px]">
+                <td className="px-6 py-4 min-w-[150px] max-w-[450px]">
                   <div className="text-sm font-medium text-gray-900">
                     {business.name}
                   </div>
@@ -101,6 +159,35 @@ export function BusinessTable({ businesses, onExportCSV }: BusinessTableProps) {
                   ) : (
                     <span className="text-sm text-gray-400">-</span>
                   )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <button
+                    disabled={business.inLeads}
+                    className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={async () => {
+                      try {
+                        const { data, error } = await supabase
+                          .from('leads')
+                          .insert({
+                            business_id: business.id,
+                            name: business.name,
+                            status: 'Prospectar'
+                          })
+                          .select()
+                          .single();
+
+                        if (error) throw error;
+                        
+                        business.inLeads = true;
+                        alert('Empresa adicionada à gestão de leads com sucesso!');
+                      } catch (error) {
+                        console.error('Erro ao adicionar lead:', error);
+                        alert('Erro ao adicionar empresa à gestão de leads');
+                      }
+                    }}
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
                 </td>
               </tr>
             ))}
