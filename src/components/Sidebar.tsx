@@ -1,87 +1,98 @@
 import { NavLink } from 'react-router-dom';
-import { MapPin, Home, Building2, Settings, Moon, Sun, KanbanSquare } from 'lucide-react';
+import { Building2, Settings, Moon, Sun, KanbanSquare, LayoutDashboard, LogOut } from 'lucide-react';
+import { useAuth } from './AuthProvider';
 
-export function Sidebar({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
+interface SidebarProps {
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+export function Sidebar({ darkMode, toggleDarkMode }: SidebarProps) {
+  const { signOut } = useAuth();
+
   return (
-    <div className={`w-64 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r h-screen fixed left-0 top-0 p-6 transition-colors duration-200`}>
-      <div className={`flex items-center gap-2 mb-8 ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-        <MapPin className="h-8 w-8 text-blue-600" />
-        <h2 className="text-xl font-semibold">Gerenciador</h2>
+    <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Prospec
+        </h1>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="flex-1 p-4 space-y-1">
         <NavLink
-          to="/"
-          className={({ isActive }) => 
-            `flex items-center px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? `${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`
-                : `${darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`
+          to="/dashboard"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`
           }
         >
-          <Home className="h-5 w-5 mr-3" />
+          <LayoutDashboard className="h-5 w-5" />
           Dashboard
         </NavLink>
 
         <NavLink
           to="/empresas"
-          className={({ isActive }) => 
-            `flex items-center px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? `${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`
-                : `${darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`
           }
         >
-          <Building2 className="h-5 w-5 mr-3" />
+          <Building2 className="h-5 w-5" />
           Empresas
         </NavLink>
 
         <NavLink
-          to="/configuracoes"
-          className={({ isActive }) => 
-            `flex items-center px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? `${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`
-                : `${darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`
+          to="/gestao-leads"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`
           }
         >
-          <Settings className="h-5 w-5 mr-3" />
-          Configurações
+          <KanbanSquare className="h-5 w-5" />
+          Gestão de Leads
         </NavLink>
 
         <NavLink
-          to="/gestao-leads"
-          className={({ isActive }) => 
-            `flex items-center px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? `${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`
-                : `${darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`
+          to="/configuracoes"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`
           }
         >
-          <KanbanSquare className="h-5 w-5 mr-3" />
-          Gestão de Leads
+          <Settings className="h-5 w-5" />
+          Configurações
         </NavLink>
       </nav>
 
-      <div className="absolute bottom-6 left-6 right-6">
+      <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
         <button
           onClick={toggleDarkMode}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-            darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-          }`}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         >
-          {darkMode ? (
-            <Sun className="h-5 w-5" />
-          ) : (
-            <Moon className="h-5 w-5" />
-          )}
-          {darkMode ? 'Modo Claro' : 'Modo Escuro'}
+          {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {darkMode ? 'Modo claro' : 'Modo escuro'}
+        </button>
+
+        <button
+          onClick={signOut}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+        >
+          <LogOut className="h-5 w-5" />
+          Sair
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

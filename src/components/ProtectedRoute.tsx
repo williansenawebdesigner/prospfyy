@@ -1,17 +1,28 @@
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 
-type ProtectedRouteProps = {
-  children: ReactNode;
-};
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user } = useAuth();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
+        </div>
+      </div>
+    );
   }
 
-  return children;
-};
+  if (!user) {
+    return <Navigate to="/login" state={{ returnTo: location.pathname }} replace />;
+  }
+
+  return <>{children}</>;
+}
