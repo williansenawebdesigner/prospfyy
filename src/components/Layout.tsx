@@ -7,65 +7,100 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-export function Layout({ children }: LayoutProps) {
-  const [darkMode, setDarkMode] = useState(() => {
-    // Verificar preferência salva no localStorage
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      return savedTheme === 'dark';
+// Função para obter o tema inicial
+const getInitialTheme = (): boolean => {
+  // Primeiro verifica no localStorage
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    return savedTheme === 'dark';
+  }
+  // Se não houver preferência salva, usa preferência do sistema
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+};
+
+// Função para sincronizar o tema com o Supabase
+const syncThemeWithSupabase = async (user: any, darkMode: boolean) => {
+  if (!user) return;
+
+  try {
+    const { error } = await supabase
+      .from('user_settings')
+      .update({ dark_mode: darkMode })
+      .eq('user_id', user.id);
+
+    if (error) {
+      // Se o erro for que o registro não existe, cria um novo
+      if (error.code === 'PGRST116') {
+        await supabase
+          .from('user_settings')
+          .insert([
+            {
+              user_id: user.id,
+              dark_mode: darkMode,
+              search_radius_km: 10,
+              default_location: { lat: -23.550520, lng: -46.633308 } // São Paulo
+            }
+          ]);
+      } else {
+        console.error('Erro ao sincronizar tema com Supabase:', error);
+      }
     }
-    // Se não houver preferência salva, usar preferência do sistema
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-  
+  } catch (error) {
+    console.error('Erro ao sincronizar tema:', error);
+  }
+};
+
+export function Layout({ children }: LayoutProps) {
+  const [darkMode, setDarkMode] = useState(getInitialTheme);
   const { user } = useAuth();
 
-  useEffect(() => {
-    const loadThemePreference = async () => {
-      try {
-        if (!user) return;
-
-        const { data } = await supabase
-          .from('user_settings')
-          .select('dark_mode')
-          .eq('user_id', user.id)
-          .single();
-
-        if (data) {
-          setDarkMode(data.dark_mode);
-          // Salvar no localStorage também
-          localStorage.setItem('theme', data.dark_mode ? 'dark' : 'light');
-        }
-      } catch (error) {
-        console.error('Erro ao carregar preferência de tema:', error);
-      }
-    };
-
-    loadThemePreference();
-  }, [user]);
-
+  // Efeito para aplicar o tema ao documento
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-    // Salvar no localStorage sempre que o tema mudar
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  const toggleDarkMode = async () => {
-    try {
-      if (!user) return;
+  // Efeito para sincronizar com Supabase quando o usuário logar
+  useEffect(() => {
+    if (user) {
+      // Busca as configurações do usuário no Supabase
+      const loadUserSettings = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('user_settings')
+            .select('dark_mode')
+            .eq('user_id', user.id)
+            .single();
 
-      const newDarkMode = !darkMode;
-      setDarkMode(newDarkMode);
+          if (!error && data) {
+            // Se o tema do Supabase for diferente do localStorage, atualiza
+            const currentTheme = localStorage.getItem('theme') === 'dark';
+            if (currentTheme !== data.dark_mode) {
+              setDarkMode(data.dark_mode);
+              localStorage.setItem('theme', data.dark_mode ? 'dark' : 'light');
+            }
+          } else if (error.code === 'PGRST116') {
+            // Se não existir configuração, sincroniza o tema atual com o Supabase
+            syncThemeWithSupabase(user, darkMode);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar configurações:', error);
+        }
+      };
 
-      await supabase
-        .from('user_settings')
-        .update({ dark_mode: newDarkMode })
-        .eq('user_id', user.id);
+      loadUserSettings();
+    }
+  }, [user]);
 
-      // Salvar no localStorage
-      localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
-    } catch (error) {
-      console.error('Erro ao atualizar tema:', error);
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    
+    // Atualiza estado e localStorage imediatamente
+    setDarkMode(newDarkMode);
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+
+    // Sincroniza com Supabase em segundo plano
+    if (user) {
+      syncThemeWithSupabase(user, newDarkMode);
     }
   };
 
@@ -77,4 +112,4 @@ export function Layout({ children }: LayoutProps) {
       </main>
     </div>
   );
-} 
+}

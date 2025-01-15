@@ -1,162 +1,269 @@
-import { useState } from 'react';
-import { X, Star, Globe, Phone, MapPin, Send } from 'lucide-react';
-import type { Lead, Comment } from '../types';
+import { useState, useEffect } from 'react';
+import { X, Star, MessageCircle, Pencil, Trash } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import type { Lead, Comment } from '../types';
 
 interface LeadDetailsModalProps {
   lead: Lead;
   onClose: () => void;
-  onUpdate: (updatedLead: Lead) => void;
+  onUpdate: (lead: Lead) => void;
 }
 
 export function LeadDetailsModal({ lead, onClose, onUpdate }: LeadDetailsModalProps) {
   const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingComment, setEditingComment] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [comments, setComments] = useState<Comment[]>(lead.comments || []);
+  const [currentUser, setCurrentUser] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    getCurrentUser();
+    loadComments();
+  }, []);
+
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setCurrentUser(user.id);
+    }
+  };
+
+  const loadComments = async () => {
+    try {
+      const { data: commentsData, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('lead_id', lead.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao carregar comentários:', error);
+        return;
+      }
+
+      setComments(commentsData);
+      onUpdate({ ...lead, comments: commentsData });
+    } catch (error) {
+      console.error('Erro ao carregar comentários:', error);
+    }
+  };
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || isSubmitting) return;
+    if (!newComment.trim()) return;
 
-    setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
+      if (!user) return;
 
-      const { data: comment, error } = await supabase
+      const { error } = await supabase
         .from('comments')
-        .insert({
-          lead_id: lead.id,
-          content: newComment.trim(),
-          user_id: user.id
-        })
+        .insert([
+          {
+            lead_id: lead.id,
+            content: newComment,
+            user_id: user.id
+          }
+        ])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao adicionar comentário:', error);
+        return;
+      }
 
-      const updatedLead = {
-        ...lead,
-        comments: [...lead.comments, comment as Comment]
-      };
-
-      onUpdate(updatedLead);
       setNewComment('');
+      await loadComments();
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error);
-      alert('Erro ao adicionar comentário. Por favor, tente novamente.');
-    } finally {
-      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditComment = async (commentId: string) => {
+    if (!editedContent.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .update({ content: editedContent })
+        .eq('id', commentId);
+
+      if (error) {
+        console.error('Erro ao editar comentário:', error);
+        return;
+      }
+
+      setEditingComment(null);
+      setEditedContent('');
+      await loadComments();
+    } catch (error) {
+      console.error('Erro ao editar comentário:', error);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) {
+        console.error('Erro ao excluir comentário:', error);
+        return;
+      }
+
+      await loadComments();
+    } catch (error) {
+      console.error('Erro ao excluir comentário:', error);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {lead.name}
-              </h2>
-              <div className="flex items-center gap-1 mt-1 text-gray-500 dark:text-gray-400">
-                <Star className="h-4 w-4 text-yellow-400" />
-                <span>{lead.rating}</span>
-                <span className="text-sm">({lead.review_count} avaliações)</span>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex justify-between items-start">
+            <div className="pr-4">
+              <h2 className="text-xl font-bold text-gray-900 break-words">{lead.name}</h2>
+              <div className="flex items-center mt-2">
+                <Star className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                <span className="ml-1 text-gray-600">{lead.rating}</span>
+                <span className="mx-2 text-gray-400">•</span>
+                <span className="text-gray-600">{lead.review_count} avaliações</span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+              className="text-gray-400 hover:text-gray-500 flex-shrink-0"
             >
-              <X className="h-5 w-5" />
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Informações da empresa */}
-          <div className="space-y-4 mb-8">
-            <div className="flex items-start gap-2 text-gray-600 dark:text-gray-300">
-              <MapPin className="h-5 w-5 mt-0.5 flex-shrink-0" />
-              <span>{lead.address}</span>
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="space-y-6">
+            {/* Informações do Lead */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Informações</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Status</p>
+                  <p className="mt-1 break-words">{lead.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Endereço</p>
+                  <p className="mt-1 break-words">{lead.address}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Telefone</p>
+                  <p className="mt-1 break-words">{lead.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Website</p>
+                  <p className="mt-1 break-all">
+                    {lead.website && (
+                      <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                        {lead.website}
+                      </a>
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
-            
-            {lead.phone && (
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                <Phone className="h-5 w-5" />
-                <a
-                  href={`tel:${lead.phone}`}
-                  className="hover:text-blue-600 dark:hover:text-blue-400"
-                >
-                  {lead.phone}
-                </a>
-              </div>
-            )}
-            
-            {lead.website && (
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                <Globe className="h-5 w-5" />
-                <a
-                  href={lead.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-blue-600 dark:hover:text-blue-400"
-                >
-                  {lead.website}
-                </a>
-              </div>
-            )}
-          </div>
 
-          {/* Comentários */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Comentários
-            </h3>
-            <div className="space-y-4 mb-6">
-              {lead.comments.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Nenhum comentário ainda.
-                </p>
-              ) : (
-                lead.comments.map(comment => (
-                  <div
-                    key={comment.id}
-                    className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4"
+            {/* Comentários */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 flex-shrink-0" />
+                Comentários
+              </h3>
+
+              {/* Form para adicionar comentário */}
+              <form onSubmit={handleAddComment} className="mb-6">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Adicione um comentário..."
+                    className="flex-1 min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-shrink-0"
                   >
-                    <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      {comment.content}
-                    </p>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-2 block">
-                      {new Date(comment.created_at).toLocaleString('pt-BR')}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+                    Enviar
+                  </button>
+                </div>
+              </form>
 
-            {/* Formulário de novo comentário */}
-            <form onSubmit={handleAddComment} className="relative">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Adicione um comentário..."
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-white resize-none"
-                rows={3}
-              />
-              <button
-                type="submit"
-                disabled={!newComment.trim() || isSubmitting}
-                className="absolute bottom-3 right-3 p-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="h-5 w-5" />
-              </button>
-            </form>
+              {/* Lista de comentários */}
+              <div className="space-y-4">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
+                    {editingComment === comment.id ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                          className="flex-1 min-w-0 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={() => handleEditComment(comment.id)}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex-shrink-0"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingComment(null);
+                            setEditedContent('');
+                          }}
+                          className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 flex-shrink-0"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-gray-800 break-words">{comment.content}</p>
+                        <div className="flex justify-between items-center mt-2 flex-wrap gap-2">
+                          <span className="text-sm text-gray-500">
+                            {new Date(comment.created_at).toLocaleDateString()}
+                          </span>
+                          {currentUser === comment.user_id && (
+                            <div className="flex gap-2 flex-shrink-0">
+                              <button
+                                onClick={() => {
+                                  setEditingComment(comment.id);
+                                  setEditedContent(comment.content);
+                                }}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

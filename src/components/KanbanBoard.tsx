@@ -8,10 +8,12 @@ interface KanbanBoardProps {
 }
 
 const statusColumns: BusinessStatus[] = [
-  'Prospectar',
-  'Mensagem enviada', 
-  'Cliente fechado',
-  'Cliente perdido'
+  'Lead',
+  'Contato Realizado', 
+  'Proposta Enviada',
+  'Em Negociação',
+  'Fechado',
+  'Perdido'
 ];
 
 export function KanbanBoard({ businesses, onStatusChange }: KanbanBoardProps) {
@@ -48,7 +50,7 @@ export function KanbanBoard({ businesses, onStatusChange }: KanbanBoardProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="grid grid-cols-4 gap-4 p-4">
+      <div className="grid grid-cols-6 gap-4 p-4">
         {statusColumns.map(status => (
           <Droppable key={status} droppableId={status}>
             {(provided: DroppableProvided) => (

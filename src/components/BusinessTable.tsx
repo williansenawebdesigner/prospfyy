@@ -1,14 +1,14 @@
 import { Download, Star, Search, Plus, Filter } from 'lucide-react';
 import { useState } from 'react';
 import type { Business } from '../types';
-import { supabase } from '../lib/supabase';
 
 interface BusinessTableProps {
   businesses: Business[];
   onExportCSV: () => void;
+  onAddToLeads: (business: Business) => void;
 }
 
-export function BusinessTable({ businesses, onExportCSV }: BusinessTableProps) {
+export function BusinessTable({ businesses, onExportCSV, onAddToLeads }: BusinessTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
   const [hasWebsiteFilter, setHasWebsiteFilter] = useState<'all' | 'with' | 'without'>('all');
@@ -172,49 +172,18 @@ export function BusinessTable({ businesses, onExportCSV }: BusinessTableProps) {
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <button
-                    disabled={business.inLeads}
-                    onClick={async () => {
-                      try {
-                        const { data: { user } } = await supabase.auth.getUser();
-                        
-                        if (!user) {
-                          alert('Por favor, faça login antes de adicionar leads');
-                          return;
-                        }
-
-                        const { error } = await supabase
-                          .from('leads')
-                          .insert({
-                            business_id: business.id,
-                            name: business.name,
-                            address: business.address,
-                            phone: business.phone,
-                            website: business.website,
-                            rating: business.rating,
-                            review_count: business.reviewCount,
-                            status: 'Prospectar'
-                          })
-                          .select()
-                          .single();
-
-                        if (error) throw error;
-                        
-                        business.inLeads = true;
-                        alert('Empresa adicionada à gestão de leads com sucesso!');
-                      } catch (error) {
-                        console.error('Erro ao adicionar lead:', error);
-                        alert('Erro ao adicionar empresa à gestão de leads');
-                      }
-                    }}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      business.inLeads
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600'
-                        : 'text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Plus className="h-5 w-5" />
-                  </button>
+                  {!business.inLeads && (
+                    <button
+                      onClick={() => onAddToLeads(business)}
+                      className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Lead
+                    </button>
+                  )}
+                  {business.inLeads && (
+                    <span className="text-sm text-gray-500">Já é lead</span>
+                  )}
                 </td>
               </tr>
             ))}

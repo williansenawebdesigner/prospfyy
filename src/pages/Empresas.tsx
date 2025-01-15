@@ -61,7 +61,7 @@ export function Empresas() {
       if (!user) return;
 
       const placesResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&location=${settings.default_location.lat},${settings.default_location.lng}&radius=${settings.search_radius_km * 1000}&key=${settings.google_api_key}`
+        `/api/places?query=${encodeURIComponent(searchQuery)}&location=${settings.default_location.lat},${settings.default_location.lng}&radius=${settings.search_radius_km * 1000}&key=${settings.google_api_key}`
       );
 
       if (!placesResponse.ok) {
@@ -93,7 +93,7 @@ export function Empresas() {
         placesData.results.map(async (place: any) => {
           try {
             const detailsResponse = await fetch(
-              `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,rating,formatted_address,formatted_phone_number,website,user_ratings_total,geometry&key=${settings.google_api_key}`
+              `/api/places/details?place_id=${place.place_id}&fields=name,rating,formatted_address,formatted_phone_number,website,user_ratings_total,geometry&key=${settings.google_api_key}`
             );
 
             if (!detailsResponse.ok) return null;
@@ -169,6 +169,58 @@ export function Empresas() {
       setShowErrorPopup(true);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const addToLeads = async (business: Business) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: existingLead } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('business_id', business.id)
+        .single();
+
+      if (existingLead) {
+        setErrorMessage('Esta empresa já está em seus leads.');
+        setShowErrorPopup(true);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('leads')
+        .insert([
+          {
+            business_id: business.id,
+            name: business.name,
+            address: business.address,
+            phone: business.phone,
+            website: business.website,
+            rating: business.rating,
+            review_count: business.reviewCount,
+            status: 'Lead',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ]);
+
+      if (error) {
+        console.error('Erro ao adicionar lead:', error);
+        setErrorMessage('Erro ao adicionar empresa aos leads.');
+        setShowErrorPopup(true);
+        return;
+      }
+
+      // Atualizar a lista de empresas para mostrar que esta já está nos leads
+      setBusinesses(businesses.map(b => 
+        b.id === business.id ? { ...b, inLeads: true } : b
+      ));
+    } catch (error) {
+      console.error('Erro ao adicionar lead:', error);
+      setErrorMessage('Erro ao adicionar empresa aos leads.');
+      setShowErrorPopup(true);
     }
   };
 
@@ -278,6 +330,7 @@ export function Empresas() {
         <BusinessTable
           businesses={businesses}
           onExportCSV={handleExportCSV}
+          onAddToLeads={addToLeads}
         />
       )}
 

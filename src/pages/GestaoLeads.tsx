@@ -70,6 +70,49 @@ export function GestaoLeads() {
     }
   };
 
+  const handleLeadUpdate = async (updatedLead: Lead) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: updatedLead.status })
+        .eq('id', updatedLead.id);
+
+      if (error) {
+        console.error('Erro ao atualizar lead:', error);
+        return;
+      }
+
+      setLeads(currentLeads => 
+        currentLeads.map(lead => 
+          lead.id === updatedLead.id ? updatedLead : lead
+        )
+      );
+
+      // Atualizar estatísticas
+      const totalLeads = leads.length;
+      const leadsFechados = leads.filter(lead => 
+        lead.id === updatedLead.id ? updatedLead.status === 'Fechado' : lead.status === 'Fechado'
+      ).length;
+      const leadsPerdidos = leads.filter(lead => 
+        lead.id === updatedLead.id ? updatedLead.status === 'Perdido' : lead.status === 'Perdido'
+      ).length;
+      const leadsAtivos = totalLeads - leadsFechados - leadsPerdidos;
+      const taxaConversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
+      const mediaAvaliacoes = leads.reduce((acc, lead) => acc + lead.rating, 0) / totalLeads || 0;
+
+      setStats({
+        totalLeads,
+        leadsAtivos,
+        leadsFechados,
+        leadsPerdidos,
+        taxaConversao,
+        mediaAvaliacoes
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar lead:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -157,7 +200,10 @@ export function GestaoLeads() {
           </p>
         </div>
         <div className="p-6">
-          <LeadKanban leads={leads} onLeadUpdate={loadLeads} />
+          <LeadKanban 
+            leads={leads} 
+            onLeadUpdate={handleLeadUpdate}
+          />
         </div>
       </div>
     </div>

@@ -14,7 +14,7 @@ export function Sidebar({ darkMode, toggleDarkMode }: SidebarProps) {
     <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden">
       <div className="p-6 border-b border-gray-100 dark:border-gray-800">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Prospec
+          Prospfy
         </h1>
       </div>
 
